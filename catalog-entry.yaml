@@ -1,0 +1,26 @@
+# Catalog registration for the ExposedService Configuration package.
+#
+# HOW TO REGISTER (after the first release exists):
+#   1. Tag a release (vX.Y.Z) here -> the release workflow publishes
+#      ghcr.io/open-service-portal/configuration-exposed-service:vX.Y.Z
+#   2. Copy this file into the `catalog` repo as templates/template-exposed-service.yaml
+#      (pin spec.package to the released version), and add that path to catalog/kustomization.yaml.
+#   3. Flux syncs it into the cluster.
+#
+# Until then this is a prepared draft (version pinned to latest for reference).
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-exposed-service
+  namespace: crossplane-system
+  annotations:
+    meta.crossplane.io/description: "Expose an in-cluster Service over HTTPS via Gateway API (HTTPRoute); TLS + DNS handled by the platform"
+    meta.crossplane.io/maintainer: "Open Service Portal Team"
+    meta.crossplane.io/source: "github.com/open-service-portal/template-exposed-service"
+spec:
+  package: ghcr.io/open-service-portal/configuration-exposed-service:latest
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 3
+  skipDependencyResolution: true

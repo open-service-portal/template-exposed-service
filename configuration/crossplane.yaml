@@ -1,0 +1,25 @@
+---
+# Crossplane Configuration Package metadata
+# Defines how the package is built and published (ghcr.io/open-service-portal/configuration-exposed-service).
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-exposed-service
+  labels:
+    provider: gateway-api
+    type: ingress-tls-dns
+    openportal.dev/template: "true"
+spec:
+  crossplane:
+    version: ">=v2.0.0"
+  dependsOn:
+    # HTTPRoute is authored via provider-kubernetes (kubernetes.m.crossplane.io Object).
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.14.0"
+    # Composition functions used by the pipeline.
+    - function: xpkg.upbound.io/crossplane-contrib/function-environment-configs
+      version: ">=v0.3.0"
+    - function: xpkg.upbound.io/crossplane-contrib/function-go-templating
+      version: ">=v0.9.0"
+    - function: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+      version: ">=v0.4.0"

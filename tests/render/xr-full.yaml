@@ -1,0 +1,14 @@
+# Full-FQDN order (US-exp-1): hostname is a complete name, used as-is.
+apiVersion: openportal.dev/v1alpha1
+kind: ExposedService
+metadata:
+  name: valkey-admin
+  namespace: valkey-route-test
+spec:
+  serviceName: valkey-admin
+  port: 8080
+  hostname: valkey-admin.openportal.dev
+  tls:
+    enabled: true
+  dns:
+    proxied: false

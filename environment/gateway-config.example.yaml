@@ -1,0 +1,14 @@
+# EnvironmentConfig consumed by the ExposedService composition (step "environment").
+# Installed ONCE PER CLUSTER by the platform infra (ESG-T2b, owned by cluster-setup),
+# NOT by this Configuration package. This example documents the contract / keys.
+#
+# Swapping the Gateway API implementation (Traefik on Rancher Desktop <-> another on osp)
+# needs no change to ExposedService or its consumers — only these values differ (AC-exp-3-1).
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: gateway-config
+data:
+  gatewayName: openportal          # metadata.name of the shared Gateway
+  gatewayNamespace: gateway-system # namespace of the shared Gateway
+  baseDomain: openportal.dev       # suffix for bare-label hostnames; wildcard cert domain
