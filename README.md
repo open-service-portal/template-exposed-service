@@ -1,15 +1,12 @@
 # template-exposed-service
 
-Crossplane Configuration for **ExposedService** — publish an in-cluster `Service` over HTTPS with a
-single order. The composition authors **one** Gateway API `HTTPRoute` attached to the platform's shared
-`Gateway`; **TLS and DNS are automatic platform behaviours** (shared wildcard cert on the Gateway
-listener + External-DNS from the route hostname). No per-service certificate, secret, or DNS record.
+A Crossplane Configuration package that defines the `ExposedService` resource: a namespaced custom
+resource that publishes an in-cluster Kubernetes Service on a public HTTPS URL.
 
-> Restaurant analogy: the **menu** (XRD) lets a developer *order* a public hostname for their Service;
-> the **kitchen** (Composition) plates a single HTTPRoute and the house (platform) handles TLS + DNS.
-
-Built from the lab-proven manifests in `exposed-service-gateway-api/impl/` (ESG track). Design &
-decision record: `open-service-portal/open-service-portal#135`.
+Creating an `ExposedService` makes the composition create one Gateway API `HTTPRoute` that attaches the
+Service to a shared `Gateway`. TLS and DNS come from cluster infrastructure, not from this package: the
+shared Gateway terminates TLS with a wildcard certificate, and External-DNS creates the DNS record from
+the route's hostname. The composition creates no Certificate, Secret, or DNS resource of its own.
 
 ## API
 
@@ -20,30 +17,33 @@ metadata:
   name: my-app
   namespace: my-team
 spec:
-  serviceName: my-app            # in-cluster Service (same namespace)
-  port: 8080                     # default 80
-  hostname: my-app               # full FQDN used as-is; a bare label gets .<baseDomain>
-  tls:   { enabled: true }       # served by the shared Gateway HTTPS listener
-  dns:   { proxied: false }      # -> external-dns cloudflare-proxied annotation
+  serviceName: my-app            # in-cluster Service, same namespace as this resource
+  port: 8080                     # defaults to 80
+  hostname: my-app               # full hostname used as-is; a bare label gets .<baseDomain> appended
+  tls:   { enabled: true }       # served by the shared Gateway's HTTPS listener
+  dns:   { proxied: false }      # sets the external-dns cloudflare-proxied annotation
 ```
 
-`status.url` is `https://<hostname>` once the route is programmed.
+Once the route is programmed, `status.url` is `https://<hostname>`.
 
-## Cluster-specific values come from an EnvironmentConfig (not the XR)
+## Cluster-specific values come from an EnvironmentConfig
 
-The shared Gateway reference and base domain are **not** hardcoded in the composition — they are read
-from a `gateway-config` `EnvironmentConfig` (AC-exp-3-1), so the same `ExposedService` is portable
-across clusters and Gateway implementations:
+The shared Gateway reference and the base domain are not hardcoded in the composition. The composition
+reads them from an `EnvironmentConfig` named `gateway-config`:
 
 | key | meaning |
 |---|---|
-| `gatewayName` | `metadata.name` of the shared Gateway |
+| `gatewayName` | name of the shared Gateway |
 | `gatewayNamespace` | namespace of the shared Gateway |
-| `baseDomain` | suffix for bare-label hostnames; the wildcard cert domain |
+| `baseDomain` | suffix appended to bare-label hostnames; the wildcard certificate's domain |
 
-See `environment/gateway-config.example.yaml`. The EnvironmentConfig itself is installed **once per
-cluster by the platform infra** (ESG-T2b), alongside Gateway API + Traefik + cert-manager DNS-01 +
-External-DNS — **not** by this package.
+Because these values live outside the composition, the same `ExposedService` renders correctly on
+different clusters and against different Gateway API implementations without any change to the resource
+or the composition.
+
+The `gateway-config` EnvironmentConfig is installed once per cluster by the platform, alongside the
+Gateway, the TLS issuer, and External-DNS. This package does not install it. See
+`environment/gateway-config.example.yaml` for the expected keys.
 
 ## Install
 
@@ -62,20 +62,24 @@ EOF
 ## Test
 
 ```bash
-bash tests/run-tests.sh    # crossplane render + assertions (US-exp-1..3); needs crossplane CLI + Docker
+bash tests/run-tests.sh
 ```
+
+The script runs `crossplane render` on the examples and checks the output. It needs the Crossplane CLI
+(v2 or later) and a container runtime. See `tests/README.md` for the checks and their coverage.
 
 ## Layout
 
 ```
-configuration/   crossplane.yaml (package meta) · xrd.yaml · composition.yaml
-examples/        valkey-admin.yaml (first consumer) · minimal.yaml
-environment/     gateway-config.example.yaml (the per-cluster contract)
-tests/           functions.yaml · render/*.yaml · run-tests.sh
+configuration/   crossplane.yaml (package metadata), xrd.yaml, composition.yaml
+examples/        sample ExposedService resources
+environment/     gateway-config.example.yaml (the per-cluster EnvironmentConfig contract)
+tests/           functions.yaml, render/*.yaml, run-tests.sh
 ```
 
-## Scope note
+## Scope
 
-This repo is **ESG-T2a** (the template). Per-cluster infra is **ESG-T2b**; the Valkey Admin consumer
-wiring is **US-exp-4 / ESG-T4** in `template-valkey`. E2E (AC-exp-1-4) is validated on a live cluster,
-not in these render tests.
+This repository contains the `ExposedService` template only. The cluster infrastructure it depends on
+(the Gateway, the TLS issuer, and External-DNS) is installed separately by the platform. End-to-end
+validation on a live cluster, meaning a browser-trusted HTTPS response, is a manual step and is not
+covered by the render tests here.
