@@ -1,0 +1,10 @@
+# Bare-label order: hostname is suffixed with the EnvironmentConfig baseDomain,
+# proxied defaults to false, port defaults to 80. Used by the env-portability test.
+apiVersion: openportal.dev/v1alpha1
+kind: ExposedService
+metadata:
+  name: my-app
+  namespace: demo
+spec:
+  serviceName: my-app
+  hostname: my-app

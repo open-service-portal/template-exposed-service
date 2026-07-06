@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configuration/xrd.yaml
+  - configuration/composition.yaml
+  # Note: examples/ are applied separately.
+  # Note: the gateway-config EnvironmentConfig is installed per-cluster by the platform
+  #       infra (ESG-T2b), not from this package — see environment/gateway-config.example.yaml.

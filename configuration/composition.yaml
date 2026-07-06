@@ -1,0 +1,108 @@
+# Composition: ExposedService -> a Gateway API HTTPRoute attached to the shared Gateway.
+# TLS is served by the shared Gateway's wildcard listener; DNS is created by External-DNS
+# from the HTTPRoute hostname. So this composition authors essentially one resource.
+#
+# ESG-T2a: the shared Gateway ref and base domain are supplied via an EnvironmentConfig
+# (gateway-config: gatewayName / gatewayNamespace / baseDomain), NOT hardcoded — AC-exp-3-1.
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: exposedservice
+  labels:
+    provider: gateway-api
+    type: ingress-tls-dns
+spec:
+  compositeTypeRef:
+    apiVersion: openportal.dev/v1alpha1
+    kind: ExposedService
+  mode: Pipeline
+  pipeline:
+  # Step 1: load cluster-specific Gateway config into the environment (context).
+  - step: environment
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+      kind: Input
+      spec:
+        environmentConfigs:
+        - type: Reference
+          ref:
+            name: gateway-config
+
+  # Step 2: render the HTTPRoute (Gateway ref + baseDomain from the environment).
+  - step: render
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          {{- $xr := .observed.composite.resource }}
+          {{- $name := $xr.metadata.name }}
+          {{- $ns := $xr.metadata.namespace }}
+          {{- $svc := $xr.spec.serviceName }}
+          {{- $port := $xr.spec.port | default 80 }}
+          {{- $proxied := dig "spec" "dns" "proxied" false $xr }}
+
+          {{- $env := index .context "apiextensions.crossplane.io/environment" }}
+          {{- $gwName := dig "gatewayName" "openportal" $env }}
+          {{- $gwNs := dig "gatewayNamespace" "gateway-system" $env }}
+          {{- $baseDomain := dig "baseDomain" "" $env }}
+
+          {{- /* Full FQDN used as-is; a bare label is suffixed with baseDomain. */}}
+          {{- $host := $xr.spec.hostname }}
+          {{- if and (not (contains "." $host)) (ne $baseDomain "") }}
+          {{-   $host = printf "%s.%s" $host $baseDomain }}
+          {{- end }}
+
+          ---
+          apiVersion: kubernetes.m.crossplane.io/v1alpha1
+          kind: Object
+          metadata:
+            name: {{ $name }}-httproute
+            namespace: {{ $ns }}
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-httproute
+          spec:
+            readiness:
+              policy: DeriveFromObject
+            forProvider:
+              manifest:
+                apiVersion: gateway.networking.k8s.io/v1
+                kind: HTTPRoute
+                metadata:
+                  name: {{ $name }}
+                  namespace: {{ $ns }}
+                  labels:
+                    app.kubernetes.io/managed-by: crossplane
+                    openportal.dev/exposedservice: {{ $name }}
+                  annotations:
+                    external-dns.alpha.kubernetes.io/cloudflare-proxied: {{ $proxied | quote }}
+                spec:
+                  parentRefs:
+                  - name: {{ $gwName }}
+                    namespace: {{ $gwNs }}
+                  hostnames:
+                  - {{ $host | quote }}
+                  rules:
+                  - backendRefs:
+                    - name: {{ $svc }}
+                      port: {{ $port }}
+            providerConfigRef:
+              kind: ClusterProviderConfig
+              name: kubernetes-provider
+
+          ---
+          apiVersion: openportal.dev/v1alpha1
+          kind: ExposedService
+          metadata:
+            name: {{ $name }}
+          status:
+            url: https://{{ $host }}
+
+  - step: auto-ready
+    functionRef:
+      name: function-auto-ready

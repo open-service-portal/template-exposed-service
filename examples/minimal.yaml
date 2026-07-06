@@ -1,0 +1,10 @@
+# Minimal ExposedService: bare-label hostname is suffixed with the EnvironmentConfig baseDomain,
+# port defaults to 80, TLS on, DNS unproxied.
+apiVersion: openportal.dev/v1alpha1
+kind: ExposedService
+metadata:
+  name: my-app
+  namespace: demo
+spec:
+  serviceName: my-app
+  hostname: my-app        # -> my-app.<baseDomain> (e.g. my-app.openportal.dev)

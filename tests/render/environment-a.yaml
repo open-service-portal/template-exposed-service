@@ -1,0 +1,10 @@
+# Cluster A (e.g. Rancher Desktop / openportal.dev). Passed to `crossplane render`
+# via --extra-resources; selected by function-environment-configs (name: gateway-config).
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: gateway-config
+data:
+  gatewayName: openportal
+  gatewayNamespace: gateway-system
+  baseDomain: openportal.dev

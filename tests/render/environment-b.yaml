@@ -1,0 +1,10 @@
+# Cluster B (different Gateway impl + domain). Proves portability (AC-exp-3-1):
+# same XR + composition, only these values differ -> different rendered Gateway/host.
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: gateway-config
+data:
+  gatewayName: edge-gw
+  gatewayNamespace: edge-system
+  baseDomain: example.test

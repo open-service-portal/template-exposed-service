@@ -1,0 +1,82 @@
+# XRD: ExposedService — give an in-cluster Service a hostname via Gateway API (HTTPRoute).
+# TLS (shared Gateway wildcard) and DNS (External-DNS) are automatic platform behaviours.
+# Cluster-specific values (Gateway name/namespace, base domain) come from an EnvironmentConfig,
+# NOT this XR — see composition.yaml and environment/gateway-config.example.yaml.
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: exposedservices.openportal.dev
+  labels:
+    terasky.backstage.io/generate-form: "true"
+  annotations:
+    openportal.dev/tags: "networking,ingress,gateway-api,tls,dns"
+spec:
+  scope: Namespaced
+  group: openportal.dev
+  names:
+    kind: ExposedService
+    plural: exposedservices
+  defaultCompositionRef:
+    name: exposedservice
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              serviceName:
+                type: string
+                description: Name of the in-cluster Service to expose (same namespace as this XR).
+              port:
+                type: integer
+                description: Service port to route to.
+                default: 80
+              hostname:
+                type: string
+                description: >-
+                  Host to publish. A full FQDN (e.g. my-app.openportal.dev) is used as-is;
+                  a bare label (e.g. my-app) is suffixed with the EnvironmentConfig baseDomain.
+              tls:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    description: Serve via the shared Gateway's HTTPS (wildcard) listener.
+                    default: true
+                default:
+                  enabled: true
+              dns:
+                type: object
+                properties:
+                  proxied:
+                    type: boolean
+                    description: Cloudflare proxy (orange cloud) for the External-DNS record.
+                    default: false
+                default:
+                  proxied: false
+            required:
+            - serviceName
+            - hostname
+          status:
+            type: object
+            properties:
+              ready:
+                type: boolean
+              url:
+                type: string
+                description: Public URL once the route is programmed.
+    additionalPrinterColumns:
+    - name: Host
+      type: string
+      jsonPath: .spec.hostname
+    - name: Service
+      type: string
+      jsonPath: .spec.serviceName
+    - name: Ready
+      type: boolean
+      jsonPath: .status.ready
